@@ -1,0 +1,49 @@
+db.sales.aggregate([
+        {
+            $project: {
+                _id: 0,
+                store: 1,
+                month: {
+                    $dateToString: { format: '%Y-%m', date: '$date' },
+                },
+                items: 1,
+            },
+        },
+        { $unwind: '$items' },
+        { $unwind: '$items' },
+        {
+            $project: {
+                store: 1,
+                month: 1,
+                items: {
+                    name: 1,
+                    quantity: 1,
+                    price: 1,
+                    totalPrice: {
+                        $multiply: ['$items.price', '$items.quantity'],
+                    },
+                },
+            },
+        },
+        {
+            $group: {
+                _id: { store: '$store', month: '$month' },
+                items: { $push: '$items' },
+                quantity: { $sum: { $sum: '$items.quantity' } },
+                price: { $sum: { $sum: '$items.price' } },
+                totalRevenue: { $sum: { $sum: '$items.totalPrice' } },
+            },
+        },
+        {
+            $project: {
+                _id: 0,
+                store: '$_id.store',
+                month: '$_id.month',
+                totalRevenue: 1,
+                averagePrice: { $divide: ['$price', '$quantity'] },
+            },
+        },
+        {
+            $sort: { store: 1, month: 1 },
+        },
+    ]).pretty();
